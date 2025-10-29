@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Executive Function Wheel</title>
+  <style>
+    :root{
+      --bg:#f4ecff; /* soft lilac */
+      --ink:#0b2a4a; /* deep navy */
+      --grid:#d7cfee;
+      --accent:#0b2a4a;
+      --shadow:0 8px 24px rgba(11,42,74,.15);
+      --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+    html,body{height:100%}
+    body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--font); display:grid; place-items:center; padding:24px}
+
+    .app{max-width:1200px; width:100%; display:grid; gap:20px; grid-template-columns: 1.3fr 1fr; align-items:start}
+    @media (max-width: 980px){ .app{grid-template-columns: 1fr;}}
+
+    .card{background:#fff; border-radius:18px; box-shadow:var(--shadow); padding:18px}
+    h1{margin:0 0 8px; font-weight:800; letter-spacing:.3px}
+    p.topnote{margin:.2rem 0 1rem; opacity:.8}
+
+    .chartWrap{position:relative; overflow:visible}
+    svg{width:100%; height:auto; display:block; overflow:visible}
+    .label{font-size:13px; fill:var(--ink); font-weight:600}
+    .tick{stroke:var(--grid); stroke-width:1}
+    .ring{fill:none; stroke:var(--grid); stroke-width:1}
+    .centre-dot{fill:var(--ink)}
+    .segment{cursor:pointer; transition: opacity .15s ease}
+    .segment:hover{opacity:.85}
+    .handle{fill:#fff; stroke:var(--ink); stroke-width:2}
+    .legend{display:grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap:10px}
+    .legend div{display:flex; align-items:center; gap:8px}
+    .swatch{width:14px; height:14px; border-radius:3px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.1)}
+
+    .controls{display:grid; gap:14px}
+    .row{display:grid; grid-template-columns: 1fr minmax(160px, 220px); gap:10px; align-items:center}
+    .row label{font-size:14px; font-weight:600}
+    input[type="range"]{width:100%}
+    .nums{width:42px; text-align:right; font-feature-settings:"tnum" on;}
+
+    .btnbar{display:flex; gap:10px; flex-wrap:wrap; margin-top:10px}
+    button{border:0; background:var(--accent); color:#fff; padding:10px 14px; border-radius:12px; cursor:pointer; box-shadow:var(--shadow); font-weight:700}
+    button.secondary{background:#e9e6f6; color:var(--ink)}
+    .small{font-size:12px; opacity:.7; margin-top:6px}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="card">
+      <h1>My Executive Function Wheel</h1>
+      <p class="topnote">Tap or click a slice to set your current level (0–5). You can also use the sliders. Export as a PNG or save/load your scores.</p>
+      <div class="chartWrap">
+        <!-- widen the viewBox so left labels are never clipped -->
+        <svg id="wheel" viewBox="-420 -360 860 760" role="img" aria-labelledby="title desc">
+          <title id="title">Interactive Executive Function Wheel</title>
+          <desc id="desc">A radial chart with eight labelled spokes and five rings. Click a sector or drag the handles to record your level for each skill.</desc>
+          <g id="rings"></g>
+          <g id="radials"></g>
+          <g id="segments"></g>
+          <g id="handles"></g>
+          <circle class="centre-dot" r="2" />
+          <g id="labels"></g>
+        </svg>
+      </div>
+      <div class="btnbar">
+        <button id="exportBtn" aria-label="Export the wheel as a PNG image">Export PNG</button>
+        <button class="secondary" id="saveBtn" aria-label="Save my scores to a file">Save scores</button>
+        <button class="secondary" id="loadBtn" aria-label="Load scores from a file">Load scores</button>
+        <button class="secondary" id="resetBtn" aria-label="Reset all scores to zero">Reset</button>
+      </div>
+      <div class="small" id="announce" aria-live="polite"></div>
+    </section>
+
+    <aside class="card">
+      <h2 style="margin-top:2px">Adjust with sliders</h2>
+      <div id="sliders" class="controls"></div>
+      <hr style="margin:14px 0; border:0; height:1px; background:var(--grid)"/>
+      <h3 style="margin:.2rem 0 .6rem">Legend</h3>
+      <div class="legend" id="legend"></div>
+    </aside>
+  </div>
+
+  <script>
+  // ------- Config -------
+  const labels = [
+    "regulating attention",
+    "sense of time",
+    "planning + prioritising",
+    "working memory",
+    "meta-cognition",
+    "starting + shifting tasks",
+    "self-regulation",
+    "adapting to changes",
+  ];
+  const steps = 5; // 0..5
+  const maxR = 300; // drawing radius
+  // Updated colours so the requested pairs are distinct and nothing is white
+  const colours = [
+    "#f6ec47", // regulating attention - yellow
+    "#45e0d2", // sense of time - teal
+    "#7fe2ff", // planning + prioritising - light cyan
+    "#ffd066", // working memory - amber
+    "#8ac6ff", // meta-cognition - light blue (was white)
+    "#ff7c66", // starting + shifting tasks - coral
+    "#c9b6ff", // self-regulation - lavender (was white)
+    "#f7b0ff"  // adapting to changes - pink (distinct from sense of time)
+  ];
+
+  // ------- State -------
+  const values = new Array(labels.length).fill(0); // 0..steps
+
+  // ------- Helpers -------
+  const toRad = deg => deg * Math.PI/180;
+  const polar = (r, aDeg) => [r*Math.cos(toRad(aDeg)), r*Math.sin(toRad(aDeg))];
+
+  function annularPath(r0, r1, a0, a1){
+    const [x0,y0] = polar(r0, a0), [x1,y1] = polar(r0, a1);
+    const [X0,Y0] = polar(r1, a0), [X1,Y1] = polar(r1, a1);
+    const large = (a1-a0) > 180 ? 1 : 0;
+    return `M ${x0} ${y0} A ${r0} ${r0} 0 ${large} 1 ${x1} ${y1} L ${X1} ${Y1} A ${r1} ${r1} 0 ${large} 0 ${X0} ${Y0} Z`;
+  }
+
+  function ringColour(base, level){
+    const c = base.startsWith('#')? base.slice(1): base;
+    const r=parseInt(c.slice(0,2),16), g=parseInt(c.slice(2,4),16), b=parseInt(c.slice(4,6),16);
+    const t = level/steps; // 0 near centre, 1 at edge
+    const mix = (ch)=> Math.round((1-t)*255 + t*ch);
+    return `rgb(${mix(r)},${mix(g)},${mix(b)})`;
+  }
+
+  // ------- Build SVG grid -------
+  const gRings = document.getElementById('rings');
+  const gRadials = document.getElementById('radials');
+  const gSegs = document.getElementById('segments');
+  const gHandles = document.getElementById('handles');
+  const gLabels = document.getElementById('labels');
+  const announce = document.getElementById('announce');
+
+  // concentric rings
+  for(let i=1;i<=steps;i++){
+    const r = maxR * i/steps;
+    const circ = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    circ.setAttribute('class','ring');
+    circ.setAttribute('r', r);
+    circ.setAttribute('cx', 0);
+    circ.setAttribute('cy', 0);
+    gRings.appendChild(circ);
+  }
+
+  // radials + labels
+  const angleStep = 360/labels.length;
+  labels.forEach((label, i)=>{
+    const a = -90 + i*angleStep; // start at top
+    const [x,y] = polar(maxR, a);
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',0); line.setAttribute('y1',0);
+    line.setAttribute('x2',x); line.setAttribute('y2',y);
+    line.setAttribute('class','tick');
+    gRadials.appendChild(line);
+
+    // label further out so it doesn't clip; viewBox widened
+    const [lx,ly]= polar(maxR+65, a);
+    const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+    t.setAttribute('class','label');
+    t.setAttribute('x', lx);
+    t.setAttribute('y', ly);
+    t.setAttribute('text-anchor', (a>90||a<-90)? 'end':'start');
+    t.textContent = label;
+    gLabels.appendChild(t);
+  });
+
+  // segments + handles
+  const segPaths=[]; const handleNodes=[];
+  labels.forEach((_, i)=>{
+    const baseA = -90 + i*angleStep;
+    const a0 = baseA, a1 = baseA + angleStep;
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('class','segment');
+    gSegs.appendChild(path);
+    segPaths.push({path,a0,a1});
+
+    const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    c.setAttribute('class','handle');
+    c.setAttribute('r',5);
+    c.setAttribute('tabindex','0');
+    c.setAttribute('role','slider');
+    c.setAttribute('aria-valuemin','0');
+    c.setAttribute('aria-valuemax',String(steps));
+    c.setAttribute('aria-label', labels[i]);
+    gHandles.appendChild(c);
+    handleNodes.push({node:c, a:(a0+a1)/2});
+  });
+
+  function redraw(){
+    segPaths.forEach((seg, i)=>{
+      const v = values[i];
+      const r0 = 0; // fill from centre to level radius
+      const r1 = maxR * (v/steps);
+      seg.path.setAttribute('d', annularPath(r0, r1, seg.a0, seg.a1));
+      seg.path.setAttribute('fill', ringColour(colours[i%colours.length], v));
+      // handle position
+      const ha = handleNodes[i].a;
+      const [hx,hy]= polar(maxR*(v/steps), ha);
+      handleNodes[i].node.setAttribute('cx', hx||0);
+      handleNodes[i].node.setAttribute('cy', hy||0);
+      handleNodes[i].node.setAttribute('aria-valuenow', String(v));
+    });
+    updateUI();
+  }
+
+  function setFromPoint(x,y){
+    const r = Math.hypot(x,y);
+    if(r>maxR) return {sector:-1, level:0};
+    let ang = Math.atan2(y,x)*180/Math.PI; // -180..180
+    ang = (ang+450)%360; // 0 at top CW
+    const sector = Math.floor(ang/angleStep);
+    const level = Math.min(steps, Math.max(0, Math.round((r/maxR)*steps)));
+    return {sector, level};
+  }
+
+  // pointer interaction
+  const svg = document.getElementById('wheel');
+  let draggingIndex = null;
+
+  svg.addEventListener('pointerdown', (e)=>{
+    const pt = svg.createSVGPoint();
+    pt.x = e.clientX; pt.y = e.clientY;
+    const ctm = svg.getScreenCTM().inverse();
+    const loc = pt.matrixTransform(ctm);
+    const {sector, level} = setFromPoint(loc.x, loc.y);
+    if(sector>=0){ values[sector]=level; draggingIndex=sector; announceChange(sector); redraw(); }
+  });
+  svg.addEventListener('pointermove', (e)=>{
+    if(draggingIndex==null) return;
+    const pt = svg.createSVGPoint(); pt.x=e.clientX; pt.y=e.clientY;
+    const loc = pt.matrixTransform(svg.getScreenCTM().inverse());
+    const {level} = setFromPoint(loc.x, loc.y);
+    values[draggingIndex]=level; redraw();
+  });
+  window.addEventListener('pointerup',()=> draggingIndex=null);
+
+  // keyboard for handles
+  handleNodes.forEach((h, i)=>{
+    h.node.addEventListener('keydown', (e)=>{
+      if(e.key==='ArrowRight'||e.key==='ArrowUp'){ e.preventDefault(); values[i]=Math.min(steps, values[i]+1); announceChange(i); redraw(); }
+      if(e.key==='ArrowLeft'||e.key==='ArrowDown'){ e.preventDefault(); values[i]=Math.max(0, values[i]-1); announceChange(i); redraw(); }
+    })
+  })
+
+  // Sliders UI
+  const sliders = document.getElementById('sliders');
+  const sliderNodes=[];
+  labels.forEach((lab, i)=>{
+    const row = document.createElement('div'); row.className='row';
+    const label = document.createElement('label'); label.textContent = lab; label.setAttribute('for',`s${i}`);
+    const right = document.createElement('div'); right.style.display='flex'; right.style.alignItems='center'; right.style.gap='8px';
+    const range = document.createElement('input'); range.type='range'; range.min=0; range.max=steps; range.value=0; range.id=`s${i}`; range.step=1;
+    const num = document.createElement('input'); num.type='number'; num.min=0; num.max=steps; num.value=0; num.className='nums';
+    right.append(range,num);
+    row.append(label, right); sliders.appendChild(row);
+    sliderNodes.push({range,num});
+
+    const sync = (v)=>{ values[i]=v; range.value=v; num.value=v; announceChange(i); redraw(); }
+    range.addEventListener('input', e=> sync(+e.target.value));
+    num.addEventListener('input', e=>{ let v=Math.max(0,Math.min(steps,+e.target.value||0)); sync(v); });
+  });
+
+  function updateUI(){ sliderNodes.forEach((s, i)=>{ s.range.value = values[i]; s.num.value = values[i]; }); }
+  function announceChange(i){ announce.textContent = `${labels[i]} set to ${values[i]} of ${steps}`; }
+
+  // Legend
+  const legend = document.getElementById('legend');
+  labels.forEach((lab, i)=>{
+    const d = document.createElement('div');
+    const sw = document.createElement('span'); sw.className='swatch'; sw.style.background = colours[i%colours.length];
+    const tx = document.createElement('span'); tx.textContent = lab;
+    d.append(sw, tx); legend.appendChild(d);
+  });
+
+  // Buttons
+  document.getElementById('resetBtn').addEventListener('click', ()=>{ values.fill(0); redraw(); });
+  document.getElementById('saveBtn').addEventListener('click', ()=>{
+    const blob = new Blob([JSON.stringify({labels, values, steps}, null, 2)], {type:'application/json'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'executive-function-wheel.json'; a.click();
+  });
+  document.getElementById('loadBtn').addEventListener('click', ()=>{
+    const inp = document.createElement('input'); inp.type='file'; inp.accept='.json,application/json';
+    inp.addEventListener('change', ()=>{
+      const f = inp.files[0]; if(!f) return;
+      const rd = new FileReader();
+      rd.onload = ()=>{
+        try{ const data = JSON.parse(rd.result);
+          if(Array.isArray(data.values) && data.values.length===labels.length){
+            data.values.forEach((v,i)=> values[i]=Math.max(0,Math.min(steps, +v||0)));
+            redraw();
+          } else alert('File not recognised.');
+        }catch(err){ alert('Could not read file.'); }
+      };
+      rd.readAsText(f);
+    });
+    inp.click();
+  });
+
+  // Export PNG
+  document.getElementById('exportBtn').addEventListener('click', async ()=>{
+    const svgNode = document.getElementById('wheel');
+    const clone = svgNode.cloneNode(true);
+    clone.setAttribute('xmlns','http://www.w3.org/2000/svg');
+    const ser = new XMLSerializer().serializeToString(clone);
+    const url = 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(ser);
+    const img = new Image();
+    const scale = 2;
+    await new Promise(res=>{ img.onload=res; img.src=url; });
+    const canvas = document.createElement('canvas');
+    // match widened viewBox: width ~ 860, height ~ 760
+    canvas.width = 860*scale; canvas.height = 760*scale;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle=getComputedStyle(document.body).getPropertyValue('--bg');
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.drawImage(img,0,0,canvas.width,canvas.height);
+    const a = document.createElement('a'); a.href=canvas.toDataURL('image/png'); a.download='executive-function-wheel.png'; a.click();
+  });
+
+  // initial draw
+  redraw();
+  </script>
+</body>
+</html>
