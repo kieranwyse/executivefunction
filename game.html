@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Executive Function Task Switcher</title>
+  <style>
+    :root{
+      --bg:#f4ecff;       /* soft lilac */
+      --ink:#0b2a4a;      /* deep navy */
+      --grid:#d7cfee;
+      --accent:#0b2a4a;
+      --shadow:0 8px 24px rgba(11,42,74,.15);
+      --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+
+    html, body {
+      height: 100%;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font);
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .app {
+      max-width: 900px;
+      width: 100%;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      padding: 18px 20px 22px;
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-weight: 800;
+      letter-spacing: .3px;
+      font-size: 1.6rem;
+    }
+
+    p.topnote {
+      margin: .2rem 0 1rem;
+      opacity: .8;
+      font-size: 0.95rem;
+    }
+
+    p {
+      line-height: 1.5;
+    }
+
+    .settings {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-bottom: 16px;
+      align-items: flex-end;
+    }
+
+    .settings label {
+      font-size: 0.9rem;
+      display: block;
+      margin-bottom: 4px;
+      font-weight: 600;
+    }
+
+    .settings input,
+    .settings select {
+      padding: 6px 10px;
+      border-radius: 10px;
+      border: 1px solid #d0d0e0;
+      font-size: 0.9rem;
+      min-width: 150px;
+      background: #f9f7ff;
+      color: var(--ink);
+    }
+
+    .button {
+      border: 0;
+      background: var(--accent);
+      color: #fff;
+      padding: 10px 16px;
+      border-radius: 999px;
+      cursor: pointer;
+      box-shadow: var(--shadow);
+      font-weight: 700;
+      font-size: 0.95rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .button:disabled {
+      background: #b2b7c6;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .button.secondary {
+      background: #e9e6f6;
+      color: var(--ink);
+      box-shadow: none;
+    }
+
+    .rules {
+      background: #f9f7ff;
+      border-radius: 14px;
+      padding: 10px 12px;
+      margin-bottom: 16px;
+      font-size: 0.9rem;
+      border: 1px solid var(--grid);
+    }
+
+    .rules-title {
+      font-weight: 700;
+      margin-bottom: 4px;
+      font-size: 0.95rem;
+    }
+
+    .rule-group {
+      margin-top: 6px;
+      margin-bottom: 4px;
+      font-weight: 600;
+    }
+
+    .rule-line {
+      margin: 2px 0;
+    }
+
+    .stimulus-area {
+      margin: 18px 0 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 160px;
+      border-radius: 16px;
+      border: 1px dashed var(--grid);
+      background: #fbf9ff;
+      position: relative;
+      overflow: hidden;
+      padding: 8px;
+    }
+
+    .stimulus {
+      font-size: 4.5rem;
+      font-weight: 800;
+      text-align: centre;
+    }
+
+    .stimulus.number {
+      color: #1d4ed8; /* blue */
+    }
+
+    .stimulus.letter {
+      color: #b91c1c; /* red */
+    }
+
+    .status-line {
+      margin-top: 6px;
+      font-size: 0.9rem;
+      color: #4b5563;
+      text-align: center;
+    }
+
+    .feedback {
+      min-height: 22px;
+      margin-top: 6px;
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+
+    .feedback.correct {
+      color: #15803d;
+    }
+
+    .feedback.incorrect {
+      color: #b91c1c;
+    }
+
+    .results {
+      margin-top: 14px;
+      padding-top: 10px;
+      border-top: 1px solid var(--grid);
+      font-size: 0.9rem;
+    }
+
+    .results p {
+      margin: 4px 0;
+    }
+
+    .small {
+      font-size: 0.8rem;
+      opacity: .7;
+      margin-top: 6px;
+    }
+
+    .saved-section {
+      margin-top: 18px;
+      padding-top: 12px;
+      border-top: 1px solid var(--grid);
+      font-size: 0.85rem;
+    }
+
+    .saved-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+      flex-wrap: wrap;
+    }
+
+    .saved-header h2 {
+      font-size: 0.95rem;
+      margin: 0;
+      font-weight: 700;
+    }
+
+    .saved-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 6px;
+      font-size: 0.8rem;
+    }
+
+    .saved-table th,
+    .saved-table td {
+      border: 1px solid #e5e7eb;
+      padding: 4px 6px;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    .saved-table th {
+      background: #f3f4f6;
+    }
+
+    .saved-empty {
+      font-size: 0.8rem;
+      opacity: .8;
+      margin-top: 4px;
+    }
+
+    @media (max-width: 600px) {
+      .card {
+        padding: 14px 14px 16px;
+      }
+      .stimulus {
+        font-size: 3.4rem;
+      }
+      .settings {
+        align-items: stretch;
+      }
+      .button {
+        width: 100%;
+        justify-content: centre;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="card">
+      <h1>Executive Function Task Switcher</h1>
+      <p class="topnote">
+        A quick arrow key game to tap into inhibition, working memory and task switching.
+        Use it for practice, before a presentation and after a presentation.
+      </p>
+
+      <div class="settings">
+        <div>
+          <label for="session-type">Session type</label>
+          <select id="session-type">
+            <option value="Practice">Practice</option>
+            <option value="Before presentation">Before presentation</option>
+            <option value="After presentation">After presentation</option>
+          </select>
+        </div>
+        <div>
+          <label for="num-trials">Number of trials</label>
+          <input id="num-trials" type="number" value="30" min="10" max="200">
+        </div>
+        <div>
+          <button id="start-button" class="button" type="button">Start game</button>
+        </div>
+      </div>
+
+      <div class="rules">
+        <div class="rules-title">Rules</div>
+
+        <div class="rule-group">Blue number (odd or even)</div>
+        <div class="rule-line">Look at the blue number.</div>
+        <div class="rule-line">Decide if it is odd or even.</div>
+        <div class="rule-line">If the number is odd → press ← Left arrow.</div>
+        <div class="rule-line">If the number is even → press → Right arrow.</div>
+
+        <div class="rule-group">Red letter (vowel or consonant)</div>
+        <div class="rule-line">Look at the red letter.</div>
+        <div class="rule-line">Decide if it is a vowel (A, E, I, O, U) or a consonant.</div>
+        <div class="rule-line">If it is a vowel → press ↑ Up arrow.</div>
+        <div class="rule-line">If it is a consonant → press ↓ Down arrow.</div>
+      </div>
+
+      <div class="stimulus-area">
+        <div id="stimulus" class="stimulus">
+          Press “Start game” to begin
+        </div>
+        <div id="status" class="status-line"></div>
+      </div>
+
+      <div id="feedback" class="feedback"></div>
+
+      <div class="results" id="results"></div>
+
+      <p class="small">
+        Use the session type drop down to label each run.
+        Results are saved locally in this browser and you can download them as a CSV file.
+      </p>
+
+      <div class="saved-section">
+        <div class="saved-header">
+          <h2>Saved sessions in this browser</h2>
+          <div>
+            <button id="download-csv" class="button secondary" type="button">Download CSV</button>
+            <button id="clear-sessions" class="button secondary" type="button">Clear all</button>
+          </div>
+        </div>
+        <div id="saved-sessions"></div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const startButton = document.getElementById('start-button');
+    const stimulusEl = document.getElementById('stimulus');
+    const statusEl = document.getElementById('status');
+    const feedbackEl = document.getElementById('feedback');
+    const resultsEl = document.getElementById('results');
+    const numTrialsInput = document.getElementById('num-trials');
+    const sessionTypeSelect = document.getElementById('session-type');
+    const savedSessionsContainer = document.getElementById('saved-sessions');
+    const downloadCsvButton = document.getElementById('download-csv');
+    const clearSessionsButton = document.getElementById('clear-sessions');
+
+    const STORAGE_KEY = 'ef_task_sessions_v1';
+
+    let trialIndex = 0;
+    let numTrials = 30;
+    let awaitingResponse = false;
+    let currentCorrectKey = null;
+    let currentTaskType = null;
+    let trialStartTime = 0;
+    let correctCount = 0;
+    let allRTs = [];
+
+    function randomInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function chooseLetter() {
+      const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      return letters[randomInt(0, letters.length - 1)];
+    }
+
+    function isVowel(letter) {
+      return 'AEIOU'.includes(letter.toUpperCase());
+    }
+
+    function loadSavedSessions() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return [];
+        return parsed;
+      } catch (e) {
+        console.error('Error reading saved sessions', e);
+        return [];
+      }
+    }
+
+    function storeSavedSessions(sessions) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
+      } catch (e) {
+        console.error('Error saving sessions', e);
+      }
+    }
+
+    function saveSession(session) {
+      const sessions = loadSavedSessions();
+      sessions.push(session);
+      storeSavedSessions(sessions);
+      renderSavedSessions();
+    }
+
+    function renderSavedSessions() {
+      const sessions = loadSavedSessions();
+      if (sessions.length === 0) {
+        savedSessionsContainer.innerHTML = '<div class="saved-empty">No sessions saved yet.</div>';
+        return;
+      }
+
+      let html = '<div style="overflow-x:auto;"><table class="saved-table">';
+      html += '<thead><tr>';
+      html += '<th>#</th>';
+      html += '<th>Time</th>';
+      html += '<th>Session type</th>';
+      html += '<th>Trials</th>';
+      html += '<th>Correct</th>';
+      html += '<th>Accuracy %</th>';
+      html += '<th>Mean RT (ms)</th>';
+      html += '</tr></thead><tbody>';
+
+      sessions.forEach((s, index) => {
+        html += '<tr>';
+        html += `<td>${index + 1}</td>`;
+        html += `<td>${s.displayTime || ''}</td>`;
+        html += `<td>${s.label || ''}</td>`;
+        html += `<td>${s.trials}</td>`;
+        html += `<td>${s.correct}</td>`;
+        html += `<td>${s.accuracy.toFixed(1)}</td>`;
+        html += `<td>${s.meanRT != null ? s.meanRT.toFixed(0) : ''}</td>`;
+        html += '</tr>';
+      });
+
+      html += '</tbody></table></div>';
+      savedSessionsContainer.innerHTML = html;
+    }
+
+    function sessionsToCsv() {
+      const sessions = loadSavedSessions();
+      if (sessions.length === 0) {
+        return '';
+      }
+      const header = [
+        'Index',
+        'Time',
+        'SessionType',
+        'Trials',
+        'Correct',
+        'AccuracyPercent',
+        'MeanRTms'
+      ];
+      const rows = [header];
+
+      sessions.forEach((s, index) => {
+        rows.push([
+          index + 1,
+          s.isoTime || '',
+          s.label || '',
+          s.trials,
+          s.correct,
+          s.accuracy.toFixed(1),
+          s.meanRT != null ? s.meanRT.toFixed(0) : ''
+        ]);
+      });
+
+      return rows.map(r =>
+        r.map(field => `"${String(field).replace(/"/g, '""')}"`).join(',')
+      ).join('\n');
+    }
+
+    function downloadCsv() {
+      const csv = sessionsToCsv();
+      if (!csv) {
+        alert('No sessions to download yet.');
+        return;
+      }
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const now = new Date();
+      const isoDate = now.toISOString().slice(0, 10);
+      link.href = url;
+      link.download = `executive_function_sessions_${isoDate}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+
+    function clearAllSessions() {
+      if (!confirm('Clear all saved sessions from this browser')) return;
+      localStorage.removeItem(STORAGE_KEY);
+      renderSavedSessions();
+    }
+
+    function startGame() {
+      resultsEl.textContent = '';
+      feedbackEl.textContent = '';
+      feedbackEl.className = 'feedback';
+
+      const parsed = parseInt(numTrialsInput.value, 10);
+      numTrials = Number.isFinite(parsed) && parsed > 0 ? parsed : 30;
+      numTrialsInput.value = numTrials;
+
+      trialIndex = 0;
+      correctCount = 0;
+      allRTs = [];
+      awaitingResponse = false;
+
+      startButton.disabled = true;
+      sessionTypeSelect.disabled = true;
+      numTrialsInput.disabled = true;
+
+      statusEl.textContent = 'Get ready';
+      stimulusEl.textContent = '✦';
+      stimulusEl.className = 'stimulus';
+
+      setTimeout(() => {
+        nextTrial();
+      }, 800);
+    }
+
+    function nextTrial() {
+      if (trialIndex >= numTrials) {
+        endGame();
+        return;
+      }
+
+      feedbackEl.textContent = '';
+      feedbackEl.className = 'feedback';
+
+      currentTaskType = Math.random() < 0.5 ? 'number' : 'letter';
+
+      if (currentTaskType === 'number') {
+        const n = randomInt(1, 9);
+        stimulusEl.textContent = n.toString();
+        stimulusEl.className = 'stimulus number';
+
+        currentCorrectKey = (n % 2 === 0) ? 'ArrowRight' : 'ArrowLeft';
+
+        statusEl.textContent = `Trial ${trialIndex + 1} of ${numTrials} · Blue number: odd = ←, even = →`;
+      } else {
+        const letter = chooseLetter();
+        stimulusEl.textContent = letter;
+        stimulusEl.className = 'stimulus letter';
+
+        currentCorrectKey = isVowel(letter) ? 'ArrowUp' : 'ArrowDown';
+
+        statusEl.textContent = `Trial ${trialIndex + 1} of ${numTrials} · Red letter: vowel = ↑, consonant = ↓`;
+      }
+
+      trialStartTime = performance.now();
+      awaitingResponse = true;
+    }
+
+    function handleKeydown(event) {
+      if (!awaitingResponse) return;
+      const key = event.key;
+
+      if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(key)) {
+        return;
+      }
+
+      awaitingResponse = false;
+      const rt = performance.now() - trialStartTime;
+
+      const correct = key === currentCorrectKey;
+      if (correct) {
+        correctCount += 1;
+        allRTs.push(rt);
+        feedbackEl.textContent = `Correct (${Math.round(rt)} ms)`;
+        feedbackEl.className = 'feedback correct';
+      } else {
+        feedbackEl.textContent = 'Incorrect';
+        feedbackEl.className = 'feedback incorrect';
+      }
+
+      trialIndex += 1;
+
+      setTimeout(() => {
+        nextTrial();
+      }, 450);
+    }
+
+    function endGame() {
+      startButton.disabled = false;
+      sessionTypeSelect.disabled = false;
+      numTrialsInput.disabled = false;
+
+      stimulusEl.textContent = 'Finished';
+      stimulusEl.className = 'stimulus';
+
+      const accuracy = (correctCount / numTrials) * 100;
+      let meanRT = null;
+      if (allRTs.length > 0) {
+        const sum = allRTs.reduce((a, b) => a + b, 0);
+        meanRT = sum / allRTs.length;
+      }
+
+      const label = sessionTypeSelect.value;
+      const now = new Date();
+      const displayTime = now.toLocaleString();
+      const isoTime = now.toISOString();
+
+      let html = `<p><strong>Session type:</strong> ${label}</p>`;
+      html += `<p><strong>Completed at:</strong> ${displayTime}</p>`;
+      html += `<p><strong>Trials:</strong> ${numTrials}</p>`;
+      html += `<p><strong>Correct:</strong> ${correctCount}</p>`;
+      html += `<p><strong>Accuracy:</strong> ${accuracy.toFixed(1)}%</p>`;
+      if (meanRT !== null) {
+        html += `<p><strong>Average reaction time (correct trials):</strong> ${meanRT.toFixed(0)} ms</p>`;
+      } else {
+        html += `<p>No correct responses to calculate reaction time.</p>`;
+      }
+      html += `<p class="small">This session has been saved locally. You can download all sessions as a CSV file below.</p>`;
+
+      resultsEl.innerHTML = html;
+
+      const sessionRecord = {
+        label,
+        displayTime,
+        isoTime,
+        trials: numTrials,
+        correct: correctCount,
+        accuracy,
+        meanRT
+      };
+      saveSession(sessionRecord);
+    }
+
+    startButton.addEventListener('click', startGame);
+    window.addEventListener('keydown', handleKeydown);
+    downloadCsvButton.addEventListener('click', downloadCsv);
+    clearSessionsButton.addEventListener('click', clearAllSessions);
+
+    renderSavedSessions();
+  </script>
+</body>
+</html>
